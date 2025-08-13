@@ -162,39 +162,54 @@ func (h *UsersHandler) UpdateUser() http.HandlerFunc {
             return
         }
         fields := map[string]interface{}{}
-        // Validare și verificare email
+        // Validare + verificări în paralel pentru email și telefon
+        type chk struct{ exists bool; err error }
+        var emailChk, phoneChk chk
+        var wgV sync.WaitGroup
+        // Email
         if update.Email != "" {
             if !utils.IsValidEmail(update.Email) {
                 utils.WriteBadRequest(w, "invalid email format")
                 return
             }
-            exists, err := h.Repo.EmailExists(r.Context(), update.Email, objID)
-            if err != nil {
-                utils.WriteInternalServerError(w, "failed to check email uniqueness", err.Error())
-                return
-            }
-            if exists {
-                utils.WriteConflict(w, "email already exists")
-                return
-            }
+            wgV.Add(1)
+            go func(email string) {
+                defer wgV.Done()
+                ex, er := h.Repo.EmailExists(r.Context(), email, objID)
+                emailChk = chk{exists: ex, err: er}
+            }(update.Email)
             fields["email"] = update.Email
         }
-        // Validare și verificare telefon
+        // Phone
         if update.Phone != "" {
             if !utils.IsValidPhone(update.Phone) {
                 utils.WriteBadRequest(w, "invalid phone format (use +40xxxxxxxxx or 07xxxxxxxx)")
                 return
             }
-            exists, err := h.Repo.PhoneExists(r.Context(), update.Phone, objID)
-            if err != nil {
-                utils.WriteInternalServerError(w, "failed to check phone uniqueness", err.Error())
-                return
-            }
-            if exists {
-                utils.WriteConflict(w, "phone number already exists")
-                return
-            }
+            wgV.Add(1)
+            go func(phone string) {
+                defer wgV.Done()
+                ex, er := h.Repo.PhoneExists(r.Context(), phone, objID)
+                phoneChk = chk{exists: ex, err: er}
+            }(update.Phone)
             fields["phone"] = update.Phone
+        }
+        wgV.Wait()
+        if emailChk.err != nil {
+            utils.WriteInternalServerError(w, "failed to check email uniqueness", emailChk.err.Error())
+            return
+        }
+        if phoneChk.err != nil {
+            utils.WriteInternalServerError(w, "failed to check phone uniqueness", phoneChk.err.Error())
+            return
+        }
+        if emailChk.exists {
+            utils.WriteConflict(w, "email already exists")
+            return
+        }
+        if phoneChk.exists {
+            utils.WriteConflict(w, "phone number already exists")
+            return
         }
         // Validare nume
         if update.Name != "" {

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"API-GO/internal/models"
@@ -36,21 +37,35 @@ func (s *AuthService) SignUp(ctx context.Context, in models.AuthSignUpRequest) (
         return nil, "", time.Time{}, errors.New("invalid phone format")
     }
 
-    exists, err := s.Users.EmailExists(ctx, in.Email)
-    if err != nil {
-        return nil, "", time.Time{}, err
+    var wg sync.WaitGroup
+    var emailExists, phoneExists bool
+    var emailErr, phoneErr error
+    // Always check email
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        emailExists, emailErr = s.Users.EmailExists(ctx, in.Email)
+    }()
+    // Check phone concurrently if provided
+    if in.Phone != "" {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            phoneExists, phoneErr = s.Users.PhoneExists(ctx, in.Phone)
+        }()
     }
-    if exists {
+    wg.Wait()
+    if emailErr != nil {
+        return nil, "", time.Time{}, emailErr
+    }
+    if phoneErr != nil {
+        return nil, "", time.Time{}, phoneErr
+    }
+    if emailExists {
         return nil, "", time.Time{}, errors.New("email already exists")
     }
-    if in.Phone != "" {
-        pexists, err := s.Users.PhoneExists(ctx, in.Phone)
-        if err != nil {
-            return nil, "", time.Time{}, err
-        }
-        if pexists {
-            return nil, "", time.Time{}, errors.New("phone number already exists")
-        }
+    if phoneExists {
+        return nil, "", time.Time{}, errors.New("phone number already exists")
     }
 
     hashed, err := utils.HashPassword(in.Password)
