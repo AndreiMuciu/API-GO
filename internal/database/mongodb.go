@@ -29,52 +29,6 @@ func UserCollection(client *mongo.Client) *mongo.Collection {
     return client.Database("API-GO").Collection("users")
 }
 
-// CheckEmailExists verifică dacă emailul există deja în baza de date
-func CheckEmailExists(client *mongo.Client, email string, excludeID ...string) (bool, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    filter := bson.M{"email": email}
-    
-    // Dacă actualizăm un user existent, excludem ID-ul său din căutare
-    if len(excludeID) > 0 && excludeID[0] != "" {
-        filter["_id"] = bson.M{"$ne": excludeID[0]}
-    }
-
-    coll := UserCollection(client)
-    count, err := coll.CountDocuments(ctx, filter)
-    if err != nil {
-        return false, err
-    }
-    
-    return count > 0, nil
-}
-
-// CheckPhoneExists verifică dacă numărul de telefon există deja în baza de date
-func CheckPhoneExists(client *mongo.Client, phone string, excludeID ...string) (bool, error) {
-    if phone == "" {
-        return false, nil // telefonul nu e obligatoriu
-    }
-
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    filter := bson.M{"phone": phone}
-    
-    // Dacă actualizăm un user existent, excludem ID-ul său din căutare
-    if len(excludeID) > 0 && excludeID[0] != "" {
-        filter["_id"] = bson.M{"$ne": excludeID[0]}
-    }
-
-    coll := UserCollection(client)
-    count, err := coll.CountDocuments(ctx, filter)
-    if err != nil {
-        return false, err
-    }
-    
-    return count > 0, nil
-}
-
 // CreateIndexes creează indecși unici pentru email și phone
 func CreateIndexes(client *mongo.Client) error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

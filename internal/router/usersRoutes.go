@@ -1,26 +1,22 @@
 package router
 
 import (
-	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
-
 	"API-GO/internal/handlers"
+	"API-GO/internal/repository"
+
+	"github.com/gorilla/mux"
 )
 
-// New construieşte un *mux.Router, înregistrează rutele de users şi îl returnează
-func New(db *mongo.Client) *mux.Router {
+// NewUsersRouter construieşte routerul de users folosind repository
+func NewUsersRouter(repo repository.UserRepository) *mux.Router {
     r := mux.NewRouter()
+    h := handlers.NewUsersHandler(repo)
 
-    // GET    /users
-    r.HandleFunc("/users", handlers.GetAllUsers(db)).Methods("GET")
-    // GET    /users/{id}
-    r.HandleFunc("/users/{id}", handlers.GetUser(db)).Methods("GET")
-    // POST   /users
-    r.HandleFunc("/users", handlers.CreateUser(db)).Methods("POST")
-    // PUT    /users/{id}
-    r.HandleFunc("/users/{id}", handlers.UpdateUser(db)).Methods("PUT")
-    // DELETE /users/{id}
-    r.HandleFunc("/users/{id}", handlers.DeleteUser(db)).Methods("DELETE")
+    r.HandleFunc("/users", h.GetAllUsers()).Methods("GET")
+    r.HandleFunc("/users/{id}", h.GetUser()).Methods("GET")
+    r.HandleFunc("/users", h.CreateUser()).Methods("POST")
+    r.HandleFunc("/users/{id}", h.UpdateUser()).Methods("PUT")
+    r.HandleFunc("/users/{id}", h.DeleteUser()).Methods("DELETE")
 
     return r
 }

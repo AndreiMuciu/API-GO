@@ -8,16 +8,14 @@ import (
 
 	"API-GO/internal/config"
 	"API-GO/internal/database"
+	"API-GO/internal/repository"
 	"API-GO/internal/router"
+	"API-GO/internal/services"
+	"API-GO/internal/utils"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
-
-// applyAPIPrefix aplică prefix-ul /api-go/v1 la orice router
-func applyAPIPrefix(r *mux.Router, handler http.Handler) {
-    r.PathPrefix("/api-go/v1").Handler(http.StripPrefix("/api-go/v1", handler))
-}
 
 func main(){
 	godotenv.Load()
@@ -47,9 +45,18 @@ func main(){
 	// Root router
     root := mux.NewRouter()
 
-    // Aplică prefix-ul la user router
-    userRouter := router.New(db)
-    applyAPIPrefix(root, userRouter)
+	// Repositories & services
+	userRepo := repository.NewMongoUserRepository(db)
+	jwtManager := &utils.JWTManager{Secret: []byte(cfg.JWTSecret), AccessTTL: time.Duration(cfg.JWTTTLMinutes) * time.Minute, CookieName: cfg.CookieName, SecureCookies: cfg.CookieSecure}
+	authSvc := services.NewAuthService(userRepo, jwtManager)
+
+	// Routere
+	userRouter := router.NewUsersRouter(userRepo) // CRUD users prin repository
+	authRouter := router.NewAuthRouter(authSvc, cfg.CookieName, cfg.CookieSecure)
+
+	// Montează distinct pentru a evita conflictul dintre două PathPrefix identice
+	root.PathPrefix("/api-go/v1/users").Handler(http.StripPrefix("/api-go/v1", userRouter))
+	root.PathPrefix("/api-go/v1/auth").Handler(http.StripPrefix("/api-go/v1", authRouter))
 
     // Pentru viitor - alte routere
     // productRouter := productRouter.New(db)
