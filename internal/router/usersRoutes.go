@@ -14,7 +14,6 @@ func NewUsersRouter(repo repository.UserRepository) *mux.Router {
 
     r.HandleFunc("/users", h.GetAllUsers()).Methods("GET")
     r.HandleFunc("/users/{id}", h.GetUser()).Methods("GET")
-    r.HandleFunc("/users", h.CreateUser()).Methods("POST")
     r.HandleFunc("/users/{id}", h.UpdateUser()).Methods("PUT")
     r.HandleFunc("/users/{id}", h.DeleteUser()).Methods("DELETE")
 

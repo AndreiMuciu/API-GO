@@ -62,88 +62,10 @@ func (h *UsersHandler) GetUser() http.HandlerFunc {
     }
 }
 
-// CreateUser inserează un nou user
+// CreateUser a fost dezactivat: crearea de utilizatori se face doar prin /auth/signup
 func (h *UsersHandler) CreateUser() http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
-        var in models.UserInput
-        if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-            utils.WriteBadRequest(w, "invalid request body", err.Error())
-            return
-        }
-        if in.Name == "" || in.Email == "" || in.Password == "" {
-            utils.WriteBadRequest(w, "name, email and password are required")
-            return
-        }
-        if !utils.IsValidEmail(in.Email) {
-            utils.WriteBadRequest(w, "invalid email format")
-            return
-        }
-        if in.Phone != "" && !utils.IsValidPhone(in.Phone) {
-            utils.WriteBadRequest(w, "invalid phone format (use +40xxxxxxxxx or 07xxxxxxxx)")
-            return
-        }
-        if len(in.Password) < 8 {
-            utils.WriteBadRequest(w, "password must be at least 8 characters")
-            return
-        }
-        if in.Password != in.PasswordConfirm {
-            utils.WriteBadRequest(w, "passwords do not match")
-            return
-        }
-
-        // Verificări în paralel pentru email/telefon
-        ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-        defer cancel()
-        var wg sync.WaitGroup
-        wg.Add(2)
-        var emailExists, phoneExists bool
-        var emailErr, phoneErr error
-        go func() {
-            defer wg.Done()
-            emailExists, emailErr = h.Repo.EmailExists(ctx, in.Email)
-        }()
-        go func() {
-            defer wg.Done()
-            if in.Phone != "" {
-                phoneExists, phoneErr = h.Repo.PhoneExists(ctx, in.Phone)
-            }
-        }()
-        wg.Wait()
-        if emailErr != nil || phoneErr != nil {
-            if emailErr != nil {
-                utils.WriteInternalServerError(w, "failed to check email uniqueness", emailErr.Error())
-            } else {
-                utils.WriteInternalServerError(w, "failed to check phone uniqueness", phoneErr.Error())
-            }
-            return
-        }
-        if emailExists {
-            utils.WriteConflict(w, "email already exists")
-            return
-        }
-        if phoneExists {
-            utils.WriteConflict(w, "phone number already exists")
-            return
-        }
-
-        hashed, err := utils.HashPassword(in.Password)
-        if err != nil {
-            utils.WriteInternalServerError(w, "failed to hash password", err.Error())
-            return
-        }
-        user := models.User{
-            ID:       primitive.NewObjectID(),
-            Name:     in.Name,
-            Email:    in.Email,
-            Password: hashed,
-            Phone:    in.Phone,
-        }
-        if err := h.Repo.Create(ctx, &user); err != nil {
-            utils.WriteInternalServerError(w, "failed to create user", err.Error())
-            return
-        }
-        user.Password = ""
-        utils.WriteCreated(w, "user created successfully", user)
+    utils.WriteMethodNotAllowed(w, "creating users via this endpoint is disabled; use /auth/signup")
     }
 }
 
