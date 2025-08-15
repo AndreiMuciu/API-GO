@@ -1,15 +1,16 @@
 package repository
 
 import (
-	"context"
+    "context"
+    "sync"
 
-	"API-GO/internal/models"
-	"API-GO/internal/utils"
+    "API-GO/internal/models"
+    "API-GO/internal/utils"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/bson/primitive"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type MongoBookRepository struct {
@@ -65,20 +66,35 @@ func (r *MongoBookRepository) ListWithQuery(ctx context.Context, q utils.ListQue
         filter = bson.M{}
     }
 
-    cur, err := r.collection().Find(ctx, filter, opts)
-    if err != nil {
-        return nil, 0, err
-    }
-    defer cur.Close(ctx)
-    var out []models.Book
-    if err := cur.All(ctx, &out); err != nil {
-        return nil, 0, err
-    }
-    total, err := r.collection().CountDocuments(ctx, filter)
-    if err != nil {
-        return nil, 0, err
-    }
-    return out, total, nil
+    var wg sync.WaitGroup
+    wg.Add(2)
+    var (
+        items []models.Book
+        total int64
+        findErr error
+        countErr error
+    )
+    // Fetch items
+    go func() {
+        defer wg.Done()
+        cur, err := r.collection().Find(ctx, filter, opts)
+        if err != nil { findErr = err; return }
+        defer cur.Close(ctx)
+        var out []models.Book
+        if err := cur.All(ctx, &out); err != nil { findErr = err; return }
+        items = out
+    }()
+    // Count total
+    go func() {
+        defer wg.Done()
+        cnt, err := r.collection().CountDocuments(ctx, filter)
+        if err != nil { countErr = err; return }
+        total = cnt
+    }()
+    wg.Wait()
+    if findErr != nil { return nil, 0, findErr }
+    if countErr != nil { return nil, 0, countErr }
+    return items, total, nil
 }
 
 func (r *MongoBookRepository) UpdateFields(ctx context.Context, id primitive.ObjectID, fields map[string]interface{}) (bool, error) {
