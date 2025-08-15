@@ -40,6 +40,8 @@ func (s *AuthService) SignUp(ctx context.Context, in models.AuthSignUpRequest) (
     var wg sync.WaitGroup
     var emailExists, phoneExists bool
     var emailErr, phoneErr error
+    var hashed string
+    var hashErr error
     // Always check email
     wg.Add(1)
     go func() {
@@ -54,6 +56,12 @@ func (s *AuthService) SignUp(ctx context.Context, in models.AuthSignUpRequest) (
             phoneExists, phoneErr = s.Users.PhoneExists(ctx, in.Phone)
         }()
     }
+    // Hash password concurrently
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        hashed, hashErr = utils.HashPassword(in.Password)
+    }()
     wg.Wait()
     if emailErr != nil {
         return nil, "", time.Time{}, emailErr
@@ -68,16 +76,15 @@ func (s *AuthService) SignUp(ctx context.Context, in models.AuthSignUpRequest) (
         return nil, "", time.Time{}, errors.New("phone number already exists")
     }
 
-    hashed, err := utils.HashPassword(in.Password)
-    if err != nil {
-        return nil, "", time.Time{}, err
+    if hashErr != nil {
+        return nil, "", time.Time{}, hashErr
     }
 
     u := models.User{
         ID:       primitive.NewObjectID(),
         Name:     in.Name,
         Email:    in.Email,
-        Password: hashed,
+    Password: hashed,
         Phone:    in.Phone,
     }
     if err := s.Users.Create(ctx, &u); err != nil {
