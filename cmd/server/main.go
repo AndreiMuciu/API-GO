@@ -52,10 +52,14 @@ func main(){
 
 	// Routere
 	userRouter := router.NewUsersRouter(userRepo) // CRUD users prin repository
+	// Books repository & router
+	bookRepo := repository.NewMongoBookRepository(db)
+	bookRouter := router.NewBooksRouter(bookRepo)
 	authRouter := router.NewAuthRouter(authSvc, cfg.CookieName, cfg.CookieSecure)
 
 	// Montează distinct pentru a evita conflictul dintre două PathPrefix identice
 	root.PathPrefix("/api-go/v1/users").Handler(http.StripPrefix("/api-go/v1", userRouter))
+	root.PathPrefix("/api-go/v1/books").Handler(http.StripPrefix("/api-go/v1", bookRouter))
 	root.PathPrefix("/api-go/v1/auth").Handler(http.StripPrefix("/api-go/v1", authRouter))
 
     // Pentru viitor - alte routere
