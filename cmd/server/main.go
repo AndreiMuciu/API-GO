@@ -8,6 +8,8 @@ import (
 
 	"API-GO/internal/config"
 	"API-GO/internal/database"
+	"API-GO/internal/logger"
+	"API-GO/internal/middleware"
 	"API-GO/internal/repository"
 	"API-GO/internal/router"
 	"API-GO/internal/services"
@@ -24,6 +26,8 @@ func main(){
 	if err != nil {
 		panic(err)
 	}
+	// Configure logging level
+	logger.SetLevelFromString(cfg.LogLevel)
 
 	db, err := database.Connect(cfg.MongoURI)
 	if err != nil {
@@ -43,7 +47,8 @@ func main(){
 
 
 	// Root router
-    root := mux.NewRouter()
+	root := mux.NewRouter()
+	root.Use(middleware.RequestLogger)
 
 	// Repositories & services
 	userRepo := repository.NewMongoUserRepository(db)
@@ -66,7 +71,7 @@ func main(){
     // productRouter := productRouter.New(db)
     // applyAPIPrefix(root, productRouter)
 
-    log.Printf("Server running on %s", cfg.Port)
+	log.Printf("Server running on %s", cfg.Port)
     if err := http.ListenAndServe(cfg.Port, root); err != nil {
         log.Fatalf("server error: %v", err)
     }

@@ -13,6 +13,7 @@ type Config struct {
     JWTTTLMinutes int
     CookieName string
     CookieSecure bool
+    LogLevel string
 }
 
 func Load() (*Config, error) {
@@ -66,5 +67,6 @@ func Load() (*Config, error) {
         JWTTTLMinutes: jwtTTL,
         CookieName: cookieName,
         CookieSecure: cookieSecure,
+        LogLevel: os.Getenv("LOG_LEVEL"),
     }, nil
 }
