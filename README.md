@@ -8,6 +8,7 @@ An opinionated Go REST API using Gorilla Mux and MongoDB, with a clean architect
 - MongoDB Go Driver (persistence)
 - JWT (github.com/golang-jwt/jwt/v5)
 - Bcrypt (golang.org/x/crypto/bcrypt)
+- Dotenv (github.com/joho/godotenv) for local .env support
 
 ## Highlights
 
@@ -40,6 +41,25 @@ Set these environment variables (examples in parentheses):
 - `JWT_TTL_MINUTES` – access token TTL in minutes (default 60)
 - `COOKIE_NAME` – auth cookie name (default `access_token`)
 - `COOKIE_SECURE` – `true|false` to mark cookie Secure (default false for local)
+- `LOG_LEVEL` – `debug|info|warn|error` (default `info`)
+
+Notes:
+
+- `PORT` may be set as a plain number (e.g., `8080`); the server adds the `:` prefix automatically.
+- On startup, a `.env` file is loaded when present.
+
+### .env example
+
+```
+PORT=8080
+MONGO_URI=mongodb+srv://appuser:<db_password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+DB_PASSWORD=yourStrongPassword
+JWT_SECRET=super-secret-change-me
+JWT_TTL_MINUTES=60
+COOKIE_NAME=access_token
+COOKIE_SECURE=false
+LOG_LEVEL=info
+```
 
 ## Run (dev)
 
@@ -51,6 +71,11 @@ go run cmd/server/main.go
 ```
 
 Server listens on `http://localhost:<PORT>` and mounts API under `/api-go/v1`.
+
+Startup behavior:
+
+- Loads `.env` (if present).
+- Ensures Mongo indexes: unique on `users.email` and sparse-unique on `users.phone`.
 
 ## Routes
 
@@ -138,6 +163,12 @@ All responses use a consistent JSON shape via `internal/utils/response.go`:
 
 - Success: `{ success: true, message, data }`
 - Error: `{ success: false, error }` with appropriate HTTP status codes (400, 401, 403, 404, 405, 409, 422, 429, 500, 503, etc.).
+
+## Logging and request IDs
+
+- Request logging middleware records: method, path, status, bytes, duration (ms), remote address, and a request ID.
+- Request ID is taken from the `X-Request-Id` header or generated; it’s attached to the context and included in structured logs.
+- Control verbosity with `LOG_LEVEL` (`debug|info|warn|error`).
 
 ## Extending with a new CRUD resource
 
