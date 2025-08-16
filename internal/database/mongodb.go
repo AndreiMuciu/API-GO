@@ -29,11 +29,17 @@ func UserCollection(client *mongo.Client) *mongo.Collection {
     return client.Database("API-GO").Collection("users")
 }
 
+// BookCollection returns a handle to the "books" collection.
+func BookCollection(client *mongo.Client) *mongo.Collection {
+    return client.Database("API-GO").Collection("books")
+}
+
 // CreateIndexes creează indecși unici pentru email și phone
 func CreateIndexes(client *mongo.Client) error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
+    // Users indexes
     coll := UserCollection(client)
     
     // Index unic pentru email
@@ -48,6 +54,18 @@ func CreateIndexes(client *mongo.Client) error {
         Options: options.Index().SetUnique(true).SetSparse(true), // sparse pentru câmpuri opționale
     }
 
-    _, err := coll.Indexes().CreateMany(ctx, []mongo.IndexModel{emailIndex, phoneIndex})
+    if _, err := coll.Indexes().CreateMany(ctx, []mongo.IndexModel{emailIndex, phoneIndex}); err != nil {
+        return err
+    }
+
+    // Books indexes (pentru căutări/filtrări frecvente)
+    bcoll := BookCollection(client)
+    bookIndexes := []mongo.IndexModel{
+        {Keys: bson.M{"title": 1}},
+        {Keys: bson.M{"author": 1}},
+        //{Keys: bson.M{"genre": 1}},
+        //{Keys: bson.M{"yearPublished": 1}},
+    }
+    _, err := bcoll.Indexes().CreateMany(ctx, bookIndexes)
     return err
 }

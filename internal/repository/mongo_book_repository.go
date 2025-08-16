@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"API-GO/internal/database"
 	"API-GO/internal/models"
 	"API-GO/internal/utils"
 
@@ -22,7 +23,7 @@ func NewMongoBookRepository(client *mongo.Client) *MongoBookRepository {
 }
 
 func (r *MongoBookRepository) collection() *mongo.Collection {
-    return r.client.Database("API-GO").Collection("books")
+    return database.BookCollection(r.client)
 }
 
 func (r *MongoBookRepository) Create(ctx context.Context, b *models.Book) error {

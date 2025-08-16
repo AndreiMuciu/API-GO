@@ -71,7 +71,7 @@ func main(){
     // productRouter := productRouter.New(db)
     // applyAPIPrefix(root, productRouter)
 
-	log.Printf("Server running on %s", cfg.Port)
+	log.Printf("Server running on port %s", cfg.Port)
     if err := http.ListenAndServe(cfg.Port, root); err != nil {
         log.Fatalf("server error: %v", err)
     }
